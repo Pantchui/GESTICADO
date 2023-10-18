@@ -2,6 +2,7 @@
 import random
 import math
 import time
+from tkinter.filedialog import askopenfilename
 
 import pyttsx3
 import datetime
@@ -14,6 +15,15 @@ import mysql.connector
 from PIL import Image, ImageTk
 
 """" #################################### definitions de fonctions #################################### """
+
+
+# couper chemin
+def chemin_coupe(chemin_complet):
+    index = chemin_complet.rfind("/")
+    nouveau_chemin = chemin_complet[index:]
+    nouveau_chemin = "..." + nouveau_chemin
+
+    return nouveau_chemin
 
 
 # fermer
@@ -500,13 +510,15 @@ def change_parametre():
 
 
 def show_inscription():
-    global image_label
+    # cache la fenetre principale
+    app.withdraw()
 
     # inscription
     def inscription():
+
         global type_notification_audio, user_connect
         # verification des champs
-        if not (pseudo.get() and mail.get() and mdp1.get() and mdp2.get()) == "":
+        if not (prenom.get() and mail.get() and mdp1.get() and mdp2.get()) == "":
 
             if type_notification_audio:
                 parler("Inscription en cours")
@@ -518,11 +530,7 @@ def show_inscription():
                 if mdp1.get() == mdp2.get():
 
                     # numero
-                    lettre = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
-                              'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
-
-                    numero = str(random.randint(100, 999)) + lettre[random.randint(0, 25)] + \
-                             lettre[random.randint(0, 25)].lower() + str(random.randint(10, 99))
+                    numero = str(datetime.datetime.now().year) + prenom.get().upper() + str(random.randint(100, 999))
 
                     # base de donnee
                     bd = mysql.connector.connect(
@@ -550,7 +558,7 @@ def show_inscription():
 
                             # requet d'insertion'
                             requet = "INSERT INTO utilisateur(numero, pseudo, mail, mdp) VALUES(%s, %s, %s, %s)"
-                            values = (numero, pseudo.get(), mail.get(), mdp2.get())
+                            values = (numero, prenom.get(), mail.get(), mdp2.get())
 
                             # execution de la requette
                             datas.execute(requet, values)
@@ -576,6 +584,7 @@ def show_inscription():
                                                         title="Attention",
                                                         bootstyle="success")
                             app_inscription.destroy()
+                            app.deiconify()
 
                     except:
                         erreur_bdd()
@@ -599,27 +608,75 @@ def show_inscription():
                 Messagebox.show_warning(message="Veuillez remplir tout les champs!", title="Attention",
                                         bootstyle="succcess")
 
+    # confirmation fermeture
+    def confirmation_fermeture():
+
+        def fermerture_inscription():
+            app_inscription.destroy()
+            app.deiconify()
+            app_fermeture.destroy()
+
+        def fermeture_toplevel():
+            app_fermeture.destroy()
+
+        app_fermeture = ttkb.Toplevel()
+        app_fermeture.title("Confirmation de fermeture")
+        app_fermeture.resizable(False, False)
+
+        ttkb.Label(app_fermeture, text="Voulez vous vraiment fermer \n cette fenetre?",
+                   justify="center", font=("poppins", 11)).pack(padx=20, pady=20)
+        ttkb.Button(app_fermeture, text="Fermer", bootstyle="success outline",
+                    command=fermerture_inscription).pack(pady=10, padx=(10, 0), side=ttkb.LEFT)
+        ttkb.Button(app_fermeture, text="Annuler", bootstyle="dark",
+                    command=fermeture_toplevel).pack(pady=10, padx=(0, 10), side=ttkb.RIGHT)
+
+        app_fermeture.mainloop()
+
+    global image_label
+
+    # choix profil
+    def selection_profil():
+        profil_path = askopenfilename(title="Ajouter une photo de profil",
+                                      filetypes=(("JPG", "*.jpg"),
+                                                 ("JPEG", "*.jpeg"),
+                                                 ("PNG", "*.png")), defaultextension=".jpg")
+        if not profil_path == "":
+            btn_profil.config(text=chemin_coupe(profil_path))
+        else:
+            profil_path = "res/profil-default.png"
+
     app_inscription = ttkb.Toplevel()
     app_inscription.title("GESTICADO - INSCRIPTION")
-    app_inscription.geometry("700x500")
-    app_inscription.grid_columnconfigure((0, 1, 2, 3), weight=1)
+    app_inscription.grid_columnconfigure((0, 1, 2, 3, 4, 5, 6, 7), weight=1)
     # app_inscription.geometry("500x500")
 
     # texte principale
     ttkb.Label(app_inscription, text="Inscription", image=image_label, compound="left", font=("poppins", 30, "bold"),
-               bootstyle="success").grid(row=0, columnspan=4, column=0, pady=20, padx=25)
+               bootstyle="success").grid(row=0, columnspan=8, column=0, pady=20, padx=25)
 
-    # pseudo
-    ttkb.Label(app_inscription, text="Pseudo: ", font=("poppins", 13)).grid(row=1, column=0, pady=(10, 20),
+    # prenom
+    ttkb.Label(app_inscription, text="Prenom: ", font=("poppins", 13)).grid(row=1, column=0, pady=(10, 20),
                                                                             padx=(20, 0), sticky="ne")
-    pseudo = ttkb.Entry(app_inscription, font=("poppins", 10))
-    pseudo.grid(row=1, columnspan=3, column=1, pady=(10, 20), padx=(0, 20), sticky="nsew")
+    prenom = ttkb.Entry(app_inscription, font=("poppins", 10))
+    prenom.grid(row=1, columnspan=3, column=1, pady=(10, 20), padx=(0, 20), sticky="nsew")
+
+    # nom
+    ttkb.Label(app_inscription, text="Nom: ", font=("poppins", 13)).grid(row=1, column=4, pady=(10, 20),
+                                                                         padx=(20, 0), sticky="ne")
+    nom = ttkb.Entry(app_inscription, font=("poppins", 10))
+    nom.grid(row=1, columnspan=3, column=5, pady=(10, 20), padx=(0, 20), sticky="nsew")
 
     # adresse mail
     ttkb.Label(app_inscription, text="Adresse mail: ", font=("poppins", 13)).grid(row=2, column=0, pady=(10, 20),
                                                                                   padx=(20, 0), sticky="e")
     mail = ttkb.Entry(app_inscription, font=("poppins", 10))
     mail.grid(row=2, columnspan=3, column=1, pady=(10, 20), padx=(0, 20), sticky="nsew")
+
+    # age
+    ttkb.Label(app_inscription, text="Age: ", font=("poppins", 13)).grid(row=2, column=4, pady=(10, 20),
+                                                                         padx=(20, 0), sticky="e")
+    age = ttkb.Entry(app_inscription, font=("poppins", 10))
+    age.grid(row=2, columnspan=3, column=5, pady=(10, 20), padx=(0, 20), sticky="nsew")
 
     # mot de passe
     ttkb.Label(app_inscription, text="Mot de passe: ", font=("poppins", 13)).grid(row=3, column=0, pady=(10, 20),
@@ -628,15 +685,26 @@ def show_inscription():
     mdp1.grid(row=3, columnspan=3, column=1, pady=(10, 20), padx=(0, 20), sticky="nsew")
 
     # confirmation mot de passe
-    ttkb.Label(app_inscription, text="Confirmation: ", font=("poppins", 13)).grid(row=4, column=0, pady=(10, 20),
+    ttkb.Label(app_inscription, text="Confirmation: ", font=("poppins", 13)).grid(row=3, column=4, pady=(10, 20),
                                                                                   padx=(20, 0), sticky="e")
     mdp2 = ttkb.Entry(app_inscription, font=("poppins", 10), show="*")
-    mdp2.grid(row=4, columnspan=3, column=1, pady=(10, 20), padx=(0, 20), sticky="nsew")
+    mdp2.grid(row=3, columnspan=3, column=5, pady=(10, 20), padx=(0, 20), sticky="nsew")
+
+    # profil
+    ttkb.Label(app_inscription, text="Ajouter un profil: ", font=("poppins", 13)).grid(row=4, column=0, pady=(10, 20),
+                                                                                       padx=(20, 0), sticky="e")
+    btn_profil = ttkb.Button(app_inscription, text="Ajouter", bootstyle="success",
+                             command=selection_profil)
+    btn_profil.grid(row=4, column=1, pady=(10, 20), sticky="w")
 
     # btn_valid
     btn_inscription = ttkb.Button(app_inscription, text="Inscription", bootstyle="success outline",
                                   command=inscription)
-    btn_inscription.grid(row=6, column=3, pady=20, padx=20, sticky="e")
+    btn_inscription.grid(row=4, column=7, pady=20, padx=20, sticky="e")
+
+    app_inscription.protocol("WM_DELETE_WINDOW", confirmation_fermeture)
+
+    app_inscription.mainloop()
 
 
 # connexion
