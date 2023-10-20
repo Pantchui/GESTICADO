@@ -14,13 +14,14 @@ from ttkbootstrap.dialogs import Messagebox
 import mysql.connector
 from PIL import Image, ImageTk
 
+import Personne
+
 """" #################################### definitions de fonctions #################################### """
 
 
 # couper chemin
 def chemin_coupe(chemin_complet):
-    index = chemin_complet.rfind("/")
-    nouveau_chemin = chemin_complet[index:]
+    nouveau_chemin = chemin_complet[len(chemin_complet)-18:]
     nouveau_chemin = "..." + nouveau_chemin
 
     return nouveau_chemin
@@ -510,140 +511,65 @@ def change_parametre():
 
 
 def show_inscription():
-    # cache la fenetre principale
-    app.withdraw()
+    # blocquer le button
+    inscription_btn.config(state=ttkb.DISABLED)
+
+    # confirmation d'annulation
+    def confirmation_fermeture():
+        msg = Messagebox.okcancel(title="Confirmation", message="Etes vous sur de vouloir annuler l'inscription?")
+        if msg == "OK":
+            app_inscription.destroy()
+            inscription_btn.config(state=ttkb.ACTIVE)
+        else:
+            Messagebox.show_warning(title="Information", message="Nous avons pris en compte votre choix!")
+
+    # choix profil
+    def selection_profil():
+        global profil_path
+        profil = askopenfilename(title="Ajouter une photo de profil",
+                                 filetypes=(("JPG", "*.jpg"),
+                                            ("JPEG", "*.jpeg"),
+                                            ("PNG", "*.png")), defaultextension=".jpg")
+        profil_path.set(profil)
+        if not profil_path.get() == "":
+            btn_profil.config(text=chemin_coupe(profil_path.get()))
 
     # inscription
     def inscription():
 
-        global type_notification_audio, user_connect
+        global type_notification_audio, profil_path, user_connect
+
+        # numero
+        numero = str(datetime.datetime.now().year) + str(random.randint(1000, 9999))
+
         # verification des champs
-        if not (prenom.get() and mail.get() and mdp1.get() and mdp2.get()) == "":
+        person = Personne.Personne(prenom.get(), nom.get(), mdp1.get(), mdp2.get(), mail.get(),
+                                   age.get(), profil_path.get(), numero)
 
-            if type_notification_audio:
-                parler("Inscription en cours")
-
-            # validation du mail
-            if '@' in mail.get() and mail.get().endswith(".com"):
-
-                # verification des mots de passe
-                if mdp1.get() == mdp2.get():
-
-                    # numero
-                    numero = str(datetime.datetime.now().year) + prenom.get().upper() + str(random.randint(100, 999))
-
-                    # base de donnee
-                    bd = mysql.connector.connect(
-                        host="localhost",
-                        user="root",
-                        password="",
-                        database="gestion_temps_taches"
-                    )
-                    try:
-                        datas = bd.cursor()
-
-                        # requet
-                        requet = "SELECT * FROM utilisateur WHERE numero = %s AND mail = %s"
-                        datas.execute(requet, (numero, mail.get()))
-
-                        results = datas.fetchall()
-                        if not len(results) == 0:
-                            if type_notification_audio:
-                                parler("Le numéro et l'adresse mail existe déjà!")
-                            else:
-                                Messagebox.show_warning(message="Le numéro et l'adresse mail existe déjà!",
-                                                        title="Attention",
-                                                        bootstyle="success")
-                        else:
-
-                            # requet d'insertion'
-                            requet = "INSERT INTO utilisateur(numero, pseudo, mail, mdp) VALUES(%s, %s, %s, %s)"
-                            values = (numero, prenom.get(), mail.get(), mdp2.get())
-
-                            # execution de la requette
-                            datas.execute(requet, values)
-                            bd.commit()
-
-                            user_connect = True
-
-                            # configuration des champs
-                            mail_connexion.insert(0, mail.get())
-                            mdp_connexion.insert(0, mdp2.get())
-
-                            btn_connexion.config(state=ttkb.DISABLED)
-                            mail_connexion.config(state=ttkb.DISABLED)
-                            mdp_connexion.config(state=ttkb.DISABLED)
-                            inscription_btn.config(state=ttkb.DISABLED)
-
-                            # message d'information
-                            if type_notification_audio:
-                                parler("Inscription réussie! Nous vous remercions pour votre confiance.")
-                            else:
-                                Messagebox.show_warning(message="Inscription réussie!\n"
-                                                                " Nous vous remercions pour votre confiance.",
-                                                        title="Attention",
-                                                        bootstyle="success")
-                            app_inscription.destroy()
-                            app.deiconify()
-
-                    except:
-                        erreur_bdd()
-                        app_inscription.destroy()
+        erreur = person.verification()
+        if erreur["etat"]:
+            erreur = person.insertion_donnee()
+            if erreur["etat"]:
+                if type_notification_audio:
+                    parler(erreur["message"])
                 else:
-                    if type_notification_audio:
-                        parler("Les mots de passe ne correspondent pas!")
-                    else:
-                        Messagebox.show_error(message="Les mots de passe ne correspondent pas!", title="Erreur",
-                                              bootstyle="succcess")
+                    Messagebox.show_warning(title="Attention", message=erreur["message"], bootstyle="success")
+                person.traitement_profil()
+                app_inscription.destroy()
+                user_connect = True
             else:
                 if type_notification_audio:
-                    parler("Adresse mail incorrecte!")
+                    parler(erreur["message"])
                 else:
-                    Messagebox.show_error(message="Adresse mail incorrecte!", title="Erreur",
-                                          bootstyle="succcess")
+                    Messagebox.show_warning(title="Attention", message=erreur["message"], bootstyle="success")
         else:
             if type_notification_audio:
-                parler("Veuillez remplir tout les champs!")
+                parler(erreur["message"])
             else:
-                Messagebox.show_warning(message="Veuillez remplir tout les champs!", title="Attention",
-                                        bootstyle="succcess")
+                Messagebox.show_warning(title="Attention", message=erreur["message"], bootstyle="success")
 
     # confirmation fermeture
-    def confirmation_fermeture():
-
-        def fermerture_inscription():
-            app_inscription.destroy()
-            app.deiconify()
-            app_fermeture.destroy()
-
-        def fermeture_toplevel():
-            app_fermeture.destroy()
-
-        app_fermeture = ttkb.Toplevel()
-        app_fermeture.title("Confirmation de fermeture")
-        app_fermeture.resizable(False, False)
-
-        ttkb.Label(app_fermeture, text="Voulez vous vraiment fermer \n cette fenetre?",
-                   justify="center", font=("poppins", 11)).pack(padx=20, pady=20)
-        ttkb.Button(app_fermeture, text="Fermer", bootstyle="success outline",
-                    command=fermerture_inscription).pack(pady=10, padx=(10, 0), side=ttkb.LEFT)
-        ttkb.Button(app_fermeture, text="Annuler", bootstyle="dark",
-                    command=fermeture_toplevel).pack(pady=10, padx=(0, 10), side=ttkb.RIGHT)
-
-        app_fermeture.mainloop()
-
     global image_label
-
-    # choix profil
-    def selection_profil():
-        profil_path = askopenfilename(title="Ajouter une photo de profil",
-                                      filetypes=(("JPG", "*.jpg"),
-                                                 ("JPEG", "*.jpeg"),
-                                                 ("PNG", "*.png")), defaultextension=".jpg")
-        if not profil_path == "":
-            btn_profil.config(text=chemin_coupe(profil_path))
-        else:
-            profil_path = "res/profil-default.png"
 
     app_inscription = ttkb.Toplevel()
     app_inscription.title("GESTICADO - INSCRIPTION")
@@ -703,8 +629,6 @@ def show_inscription():
     btn_inscription.grid(row=4, column=7, pady=20, padx=20, sticky="e")
 
     app_inscription.protocol("WM_DELETE_WINDOW", confirmation_fermeture)
-
-    app_inscription.mainloop()
 
 
 # connexion
@@ -997,6 +921,7 @@ label_taches_warm = []
 tache_exits = False
 tache_encours = False
 temps_ecoule_tache = 0
+profil_path = ttkb.StringVar(value="")
 
 # retrait tableau numero de tache
 tableau_numero_tache = [1, 2, 3, 4, 5, 6, 7, 8, 9]
