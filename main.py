@@ -15,13 +15,56 @@ import mysql.connector
 from PIL import Image, ImageTk
 
 import Personne
+import MDP
 
 """" #################################### definitions de fonctions #################################### """
 
 
+# mot de passe
+def mdp_oublie():
+    # modification mdp
+    def modification_mdp():
+        mdp_modifie = MDP.MDP(email_oublie.get(), mdp1_oublie.get(), mdp2_oublie.get())
+        erreur = mdp_modifie.verification()
+
+        if erreur["statut"]:
+            Messagebox.show_info(title="Information", message=erreur["msg"])
+            app_mdp.destroy()
+        else:
+            Messagebox.show_warning(title="Attention", message=erreur["msg"])
+
+    app_mdp = ttkb.Toplevel(title="Mot de passe")
+    app_mdp.iconbitmap("res/logo.ico")
+
+    ttkb.Label(app_mdp, text=f"Mot de passe oublie".upper(), font=("poppins", 17, "bold"), bootstyle="success").grid(
+        row=0, column=0, columnspan=2, padx=20, pady=20)
+
+    # email
+    ttkb.Label(app_mdp, text="Adresse Mail: ", font=("poppins", 13)).grid(sticky="se", padx=20, pady=10, row=1,
+                                                                          column=0)
+    email_oublie = ttkb.Entry(app_mdp, font=("poppins", 10), width=35, style="TEntry")
+    email_oublie.grid(row=1, column=1, pady=10, padx=20, sticky="w")
+
+    # mdp1
+    ttkb.Label(app_mdp, font=("poppins", 13), text="Nouveau Mot de passe: ").grid(sticky="se", padx=20, pady=10, row=2,
+                                                                                  column=0)
+    mdp1_oublie = ttkb.Entry(app_mdp, show="*", font=("poppins", 10), width=35, style="TEntry")
+    mdp1_oublie.grid(row=2, column=1, pady=10, padx=20, sticky="w")
+
+    # mdp2
+    ttkb.Label(app_mdp, font=("poppins", 13), text="Confirmez: ").grid(sticky="se", padx=20, pady=10, row=3, column=0)
+    mdp2_oublie = ttkb.Entry(app_mdp, show="*", font=("poppins", 10), width=35, style="TEntry")
+    mdp2_oublie.grid(row=3, column=1, pady=10, padx=20, sticky="w")
+
+    btn_oublie = ttkb.Button(app_mdp, text="Modifier", bootstyle="success", command=modification_mdp)
+    btn_oublie.grid(row=4, column=1, pady=20, padx=20, sticky="se")
+
+    app_mdp.mainloop()
+
+
 # couper chemin
 def chemin_coupe(chemin_complet):
-    nouveau_chemin = chemin_complet[len(chemin_complet)-18:]
+    nouveau_chemin = chemin_complet[len(chemin_complet) - 18:]
     nouveau_chemin = "..." + nouveau_chemin
 
     return nouveau_chemin
@@ -553,10 +596,23 @@ def show_inscription():
                 if type_notification_audio:
                     parler(erreur["message"])
                 else:
-                    Messagebox.show_warning(title="Attention", message=erreur["message"], bootstyle="success")
+                    Messagebox.show_info(title="Informatipn", message=erreur["message"], bootstyle="success")
                 person.traitement_profil()
+
+                mail_connexion.insert(0, f"{mail.get()}")
+                mdp_connexion.insert(0, f"{mdp1.get()}")
+
                 app_inscription.destroy()
                 user_connect = True
+
+                # configuration des champs
+                btn_connexion.config(state=ttkb.DISABLED)
+                inscription_btn.config(state=ttkb.DISABLED)
+                oublie_mdp.config(state=ttkb.DISABLED)
+
+                mail_connexion.config(state=ttkb.DISABLED)
+                mdp_connexion.config(state=ttkb.DISABLED)
+
             else:
                 if type_notification_audio:
                     parler(erreur["message"])
@@ -1093,23 +1149,29 @@ ttkb.Label(identification, text="Identification", bootstyle="success inverse",
            font=("poppins", 15)).grid(row=0, columnspan=4, column=0, padx=5,
                                       pady=(5, 35), sticky="nsew")
 
-# adresse mail
-ttkb.Label(identification, text="Adresse mail: ", font=("poppins", 13)).grid(row=1, column=0, pady=(10, 20),
-                                                                             padx=(20, 0), sticky="e")
-mail_connexion = ttkb.Entry(identification, font=("poppins", 10))
-mail_connexion.grid(row=1, columnspan=3, column=1, pady=(10, 20), padx=(0, 20), sticky="nsew")
-
-# mot de passe
-ttkb.Label(identification, text="Mot de passe: ", font=("poppins", 13)).grid(row=2, column=0, pady=(10, 20),
-                                                                             padx=(20, 0), sticky="e")
-mdp_connexion = ttkb.Entry(identification, font=("poppins", 10), show="*")
-mdp_connexion.grid(row=2, columnspan=3, column=1, pady=(10, 20), padx=(0, 20), sticky="nsew")
-
 # message
-ttkb.Label(identification, text="Pas de compte?", font=("poppins", 8)).grid(row=3, column=0, sticky="e")
+ttkb.Label(identification, text="Pas de compte?", font=("poppins", 8)).grid(row=1, column=0, sticky="e")
 inscription_btn = ttkb.Button(identification, text="inscrivez-vous!", bootstyle="info-link", width=0,
                               command=show_inscription)
-inscription_btn.grid(row=3, column=1, sticky="w")
+inscription_btn.grid(row=1, column=1, sticky="w")
+
+# adresse mail
+ttkb.Label(identification, text="Adresse mail: ", font=("poppins", 13)).grid(row=2, column=0, pady=(10, 20),
+                                                                             padx=(20, 0), sticky="e")
+mail_connexion = ttkb.Entry(identification, font=("poppins", 10))
+mail_connexion.grid(row=2, columnspan=3, column=1, pady=(10, 20), padx=(0, 20), sticky="nsew")
+
+# mot de passe
+ttkb.Label(identification, text="Mot de passe: ", font=("poppins", 13)).grid(row=3, column=0, pady=(10, 20),
+                                                                             padx=(20, 0), sticky="e")
+mdp_connexion = ttkb.Entry(identification, font=("poppins", 10), show="*")
+mdp_connexion.grid(row=3, columnspan=3, column=1, pady=(10, 20), padx=(0, 20), sticky="nsew")
+
+# message
+ttkb.Label(identification, text="Mot de passe", font=("poppins", 8)).grid(row=4, column=0, sticky="e")
+oublie_mdp = ttkb.Button(identification, text="oublie?", bootstyle="info-link", width=0,
+                              command=mdp_oublie)
+oublie_mdp.grid(row=4, column=1, sticky="w")
 
 # btn_valid
 btn_connexion = ttkb.Button(identification, text="Identification", bootstyle="success outline",

@@ -22,6 +22,7 @@ class Personne:
                     try:
                         age_entier = int(self.age)
                         self.age = age_entier
+
                         if self.chemin_photo == "":
                             self.chemin_photo = "./res/profil-default.png"
 
@@ -51,15 +52,22 @@ class Personne:
 
     def insertion_donnee(self):
         try:
-            sql = "INSERT INTO utilisateur VALUES(%s, %s, %s, %s, %s, %s)"
-            values = (self.numero, self.firstname, self.lastname, self.mdp1, self.email, self.age)
-            bd.bdd_cursor.execute(sql, values)
+            requet = "SELECT COUNT(email) FROM utilisateur WHERE email = %s"
+            bd.bdd_cursor.execute(requet, (self.email, ))
+            req_user = bd.bdd_cursor.fetchone()[0]
 
-            bd.bdd.commit()
-            bd.bdd_cursor.close()
-            bd.bdd.close()
+            if req_user == 0:
+                sql = "INSERT INTO utilisateur VALUES(%s, %s, %s, %s, %s, %s)"
+                values = (self.numero, self.firstname, self.lastname, self.mdp1, self.email, self.age)
+                bd.bdd_cursor.execute(sql, values)
 
-            return {"etat": True, "message": "Les donnees ont bien ete ajoutees!"}
+                bd.bdd.commit()
+                bd.bdd_cursor.close()
+                bd.bdd.close()
+
+                return {"etat": True, "message": "Les donnees ont bien ete ajoutees!"}
+            else:
+                return {"etat": False, "message": "L'adresse mail existe deja!"}
         except:
             return {"etat": False, "message": "Nous avons rencontre une erreur lors de l'insertion!\n"
                                               "Merci de reessayer!"}

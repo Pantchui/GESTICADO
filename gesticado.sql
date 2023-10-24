@@ -11,7 +11,6 @@ CREATE TABLE IF NOT EXISTS utilisateur
     mdp TEXT NOT NULL,
     email VARCHAR(100) NOT NULL,
     age TINYINT UNSIGNED NOT NULL,
-    photo BLOB,
     PRIMARY KEY(numero)
 );
 
