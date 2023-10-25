@@ -1,5 +1,5 @@
 import BDD as bd
-from PIL import Image
+from PIL import Image, ImageDraw
 
 
 class Personne:
@@ -35,20 +35,29 @@ class Personne:
             else:
                 return {"etat": False, "message": "L'adresse mail n'est pas valide"}
         else:
-            return {"etat": False, "message": "Completez tout les champs"}
+            return {"etat": False, "message": "Completez tout les champs!"}
 
     def traitement_profil(self):
         if self.chemin_photo == "":
             self.chemin_photo = "./res/profil-default.png"
 
         image = Image.open(self.chemin_photo)
-        if (image.size[0] or image.size[1]) > 600:
-            nouvelle_image = image.resize((int(image.size[0]*0.2), int(image.size[1]*0.2)))
-        else:
-            nouvelle_image = image.resize((int(image.size[0] * 0.35), int(image.size[1] * 0.35)))
+        nouvelle_image = image.resize((100, 100))
 
-        nouvea_chemin = f"./profil/p{self.numero}.png"
-        nouvelle_image.save(nouvea_chemin)
+        # Définir un rayon pour les coins arrondis
+        rayon = 50
+
+        # Créer un masque arrondi
+        masque = Image.new("L", nouvelle_image.size, 0)
+        draw = ImageDraw.Draw(masque)
+        draw.rounded_rectangle((0, 0, nouvelle_image.width, nouvelle_image.height), rayon, fill=255)
+
+        # Appliquer le masque à l'image
+        image_arrondie = Image.new("RGBA", nouvelle_image.size)
+        image_arrondie.paste(nouvelle_image, mask=masque)
+
+        # Enregistrer l'image arrondie
+        image_arrondie.save(f"./profil/p{self.numero}.png")
 
     def insertion_donnee(self):
         try:

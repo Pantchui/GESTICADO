@@ -16,8 +16,101 @@ from PIL import Image, ImageTk
 
 import Personne
 import MDP
+import Connexion
+import Affichage
 
 """" #################################### definitions de fonctions #################################### """
+
+
+# profil
+def show_profil():
+    global user_connect
+
+    if user_connect:
+
+        user_infos = Affichage.Affichage(mail_connexion.get())
+
+        # recuperation des informations
+        user_info = user_infos.information_utilisateur()
+
+        # creation tab
+        profil = ttkb.Frame(actions)
+        actions.add(profil, text="Mon compte")
+
+        ttkb.Label(profil, text="Mon compte", bootstyle="success inverse",
+                   font=("poppins", 15)).pack(fill=ttkb.X, pady=(5, 5), padx=5)
+
+        profil_frame = ScrolledFrame(profil, height=400, autohide=True)
+        profil_frame.pack(fill=ttkb.BOTH, padx=5, pady=(5, 10), ipadx=5, ipady=5)
+        profil_frame.grid_columnconfigure((0, 1, 2, 3), weight=1)
+
+        img = Image.open(f"./profil/p{user_info[0]}.png")
+        img_profil = ImageTk.PhotoImage(image=img, size=(300, 300))
+        ttkb.Label(profil_frame, image=img_profil).grid(columnspan=4, column=0, row=0, padx=(30, 0))
+
+        # modifier le information
+        btn_modifier_compte = ttkb.Button(profil_frame, text="Modifier", bootstyle="info outline")
+        btn_modifier_compte.grid(row=0, column=4, pady=(70, 0))
+
+        # diviser
+        ttkb.Separator(profil_frame, ).grid(row=2, column=4, sticky="ew", pady=20)
+        ttkb.Separator(profil_frame, ).grid(row=2, column=3, sticky="ew", pady=20)
+        ttkb.Separator(profil_frame, ).grid(row=2, column=2, sticky="ew", pady=20)
+        ttkb.Separator(profil_frame, ).grid(row=2, column=1, sticky="ew", pady=20)
+        ttkb.Separator(profil_frame, ).grid(row=2, column=0, sticky="ew", pady=20)
+
+        # numero
+        ttkb.Label(profil_frame, text="Numero: ", font=("poppins", 13)).grid(row=3, column=0, pady=(10, 20),
+                                                                             padx=(20, 0), sticky="ne")
+        numero_profil = ttkb.Entry(profil_frame, font=("poppins", 10))
+        numero_profil.grid(row=3, columnspan=3, column=1, pady=(10, 20), padx=(0, 20), sticky="nsew")
+        numero_profil.insert(0, user_info[0])
+        numero_profil.config(state=ttkb.DISABLED)
+
+        # prenom
+        ttkb.Label(profil_frame, text="Prenom: ", font=("poppins", 13)).grid(row=4, column=0, pady=(10, 20),
+                                                                             padx=(20, 0), sticky="ne")
+        prenom_profil = ttkb.Entry(profil_frame, font=("poppins", 10))
+        prenom_profil.grid(row=4, columnspan=3, column=1, pady=(10, 20), padx=(0, 20), sticky="nsew")
+        prenom_profil.insert(0, user_info[1])
+
+        # nom
+        ttkb.Label(profil_frame, text="Nom: ", font=("poppins", 13)).grid(row=5, column=0, pady=(10, 20),
+                                                                          padx=(20, 0), sticky="ne")
+        nom_profil = ttkb.Entry(profil_frame, font=("poppins", 10))
+        nom_profil.grid(row=5, columnspan=3, column=1, pady=(10, 20), padx=(0, 20), sticky="nsew")
+        nom_profil.insert(0, user_info[2])
+
+        # adresse mail
+        ttkb.Label(profil_frame, text="Adresse mail: ", font=("poppins", 13)).grid(row=6, column=0, pady=(10, 20),
+                                                                                   padx=(20, 0), sticky="e")
+        mail_profil = ttkb.Entry(profil_frame, font=("poppins", 10))
+        mail_profil.grid(row=6, columnspan=3, column=1, pady=(10, 20), padx=(0, 20), sticky="nsew")
+        mail_profil.insert(0, user_info[4])
+
+        # age
+        ttkb.Label(profil_frame, text="Age: ", font=("poppins", 13)).grid(row=7, column=0, pady=(10, 20),
+                                                                          padx=(20, 0), sticky="e")
+        age_profil = ttkb.Entry(profil_frame, font=("poppins", 10))
+        age_profil.grid(row=7, columnspan=3, column=1, pady=(10, 20), padx=(0, 20), sticky="nsew")
+        age_profil.insert(0, user_info[5])
+
+        # mot de passe
+        ttkb.Label(profil_frame, text="Mot de passe: ", font=("poppins", 13)).grid(row=8, column=0, pady=(10, 20),
+                                                                                   padx=(20, 0), sticky="e")
+        mdp_profil = ttkb.Entry(profil_frame, font=("poppins", 10), show="*")
+        mdp_profil.grid(row=8, columnspan=3, column=1, pady=(10, 20), padx=(0, 20), sticky="nsew")
+        mdp_profil.insert(0, user_info[3])
+
+        # profil
+        ttkb.Label(profil_frame, text="Ajouter un profil: ", font=("poppins", 13)).grid(row=9, column=0, pady=(10, 20),
+                                                                                        padx=(20, 0), sticky="e")
+        btn_profil_modif = ttkb.Button(profil_frame, text="Ajouter", bootstyle="success")
+        btn_profil_modif.grid(row=9, column=1, pady=(10, 20), sticky="w")
+
+        # supprimer le compte
+        btn_supprimer_compte = ttkb.Button(profil_frame, text="Supprimer", bootstyle="danger outline")
+        btn_supprimer_compte.grid(row=10, column=4, pady=20)
 
 
 # mot de passe
@@ -569,11 +662,11 @@ def show_inscription():
     # choix profil
     def selection_profil():
         global profil_path
-        profil = askopenfilename(title="Ajouter une photo de profil",
-                                 filetypes=(("JPG", "*.jpg"),
-                                            ("JPEG", "*.jpeg"),
-                                            ("PNG", "*.png")), defaultextension=".jpg")
-        profil_path.set(profil)
+        profil_image = askopenfilename(title="Ajouter une photo de profil",
+                                       filetypes=(("JPG", "*.jpg"),
+                                                  ("JPEG", "*.jpeg"),
+                                                  ("PNG", "*.png")), defaultextension=".jpg")
+        profil_path.set(profil_image)
         if not profil_path.get() == "":
             btn_profil.config(text=chemin_coupe(profil_path.get()))
 
@@ -604,6 +697,9 @@ def show_inscription():
 
                 app_inscription.destroy()
                 user_connect = True
+
+                actions.hide(3)
+                show_profil()
 
                 # configuration des champs
                 btn_connexion.config(state=ttkb.DISABLED)
@@ -690,100 +786,33 @@ def show_inscription():
 # connexion
 def connexion():
     global user_connect, type_notification_audio
-    # verification champ vide!
-    if not (mail_connexion.get() and mdp_connexion.get()) == "":
+    connect = Connexion.Connexion(mail_connexion.get(), mdp_connexion.get())
+
+    # verification
+    erreur = connect.verification()
+    if erreur["statut"]:
+        # configuration des champs
+        btn_connexion.config(state=ttkb.DISABLED)
+        inscription_btn.config(state=ttkb.DISABLED)
+        oublie_mdp.config(state=ttkb.DISABLED)
+
+        mail_connexion.config(state=ttkb.DISABLED)
+        mdp_connexion.config(state=ttkb.DISABLED)
+
+        user_connect = True
+        actions.hide(3)
+        show_profil()
 
         if type_notification_audio:
-            parler("Identification en cours")
-
-        # verification mail
-        if '@' in mail_connexion.get() and mail_connexion.get().endswith(".com"):
-
-            # connexion bd
-            bd = mysql.connector.connect(
-                host="localhost",
-                user="root",
-                password="",
-                database="gestion_temps_taches"
-            )
-            try:
-                data = bd.cursor()
-
-                # recuperation information
-                requet = "SELECT * FROM utilisateur WHERE mail=%s AND mdp=%s"
-                data.execute(requet, (mail_connexion.get(), mdp_connexion.get()))
-
-                # fetch information
-                results = data.fetchall()
-
-                if len(results) != 0:
-                    # desactivation des champs
-                    btn_connexion.configure(state=ttkb.DISABLED)
-                    mail_connexion.configure(state=ttkb.DISABLED)
-                    mdp_connexion.configure(state=ttkb.DISABLED)
-                    inscription_btn.configure(state=ttkb.DISABLED)
-
-                    # variable de connexion
-                    user_connect = True
-                    existance()
-
-                    global tache_exits
-
-                    if tache_exits:
-                        remplissage()
-
-                    # message
-                    if type_notification_audio:
-                        parler("Connexion réuissie! Vous pouvez maintenant ajouter vos tâches!")
-                    else:
-                        Messagebox.show_info(message="Connexion réuissie!\n Vous pouvez maintenant ajouter vos tâches!",
-                                             title="Connexion", bootstyle="success")
-
-                        # recuperation du numero
-                        requet = "SELECT numero FROM utilisateur WHERE mail = %s"
-                        data.execute(requet, (mail_connexion.get(),))
-                        numero = data.fetchall()[0][0]
-
-                        # recherche fin de journee
-                        # recuperation du numero
-                        requet = "SELECT fin_journee FROM taches WHERE numero = %s AND jour = %s"
-                        data.execute(requet, (numero, jour_actuel()))
-                        fins = data.fetchall()
-                        # print(fins, len(fins), fins[0], len(fins[0]))
-
-                        if len(fins) > 0:
-                            if fins[0][0] == 1:
-                                ajouter_tache.config(state=ttkb.DISABLED)
-                                if type_notification_audio:
-                                    parler("Vous avez déjâ fermé cette journée, vous pouvez seulement, visualiser le "
-                                           "rapport de la journée!")
-                                else:
-                                    Messagebox.show_info(
-                                        message="Vous avez déjâ fermé cette journée, vous pouvez seulement, "
-                                                "visualiser le rapport de la journée!",
-                                        title="Connexion", bootstyle="success")
-                                show_bilan()
-                                actions.hide(0)
-                                actions.select(2)
-                else:
-                    if type_notification_audio:
-                        parler("Echec de connexion! Verifiez vos données!")
-                    else:
-                        Messagebox.show_warning(message="Echec de connexion! Verifiez vos données!", title="Erreur",
-                                                bootstyle="success")
-            except:
-                erreur_bdd()
+            parler(erreur["msg"])
         else:
-            if type_notification_audio:
-                parler("L'adresse mail n'est pas correct!")
-            else:
-                Messagebox.show_warning(message="L'adresse mail n'est pas correct!", title="Erreur",
-                                        bootstyle="success")
+            Messagebox.show_info(title="Information", message=erreur["msg"])
+
     else:
         if type_notification_audio:
-            parler("Complétez tous les champs!")
+            parler(erreur["msg"])
         else:
-            Messagebox.show_warning(message="Complétez tous les champs!", title="Attention", bootstyle="success")
+            Messagebox.show_warning(title="Attention", message=erreur["msg"])
 
 
 # choix duree
@@ -1170,7 +1199,7 @@ mdp_connexion.grid(row=3, columnspan=3, column=1, pady=(10, 20), padx=(0, 20), s
 # message
 ttkb.Label(identification, text="Mot de passe", font=("poppins", 8)).grid(row=4, column=0, sticky="e")
 oublie_mdp = ttkb.Button(identification, text="oublie?", bootstyle="info-link", width=0,
-                              command=mdp_oublie)
+                         command=mdp_oublie)
 oublie_mdp.grid(row=4, column=1, sticky="w")
 
 # btn_valid
@@ -1179,6 +1208,7 @@ btn_connexion = ttkb.Button(identification, text="Identification", bootstyle="su
 btn_connexion.grid(row=4, column=3, pady=(10, 0), padx=20, sticky="e")
 
 """" #################################### parametre #################################### """
+
 parametre.grid_columnconfigure((0, 1, 2, 3), weight=1)
 
 # titre
