@@ -2,6 +2,7 @@
 import random
 import math
 import time
+import datetime
 from tkinter.filedialog import askopenfilename
 
 import pyttsx3
@@ -18,16 +19,89 @@ import Personne
 import MDP
 import Connexion
 import Affichage
+import Modification
+import Suppression
+import Ajout_tache
 
 """" #################################### definitions de fonctions #################################### """
 
 
 # profil
 def show_profil():
-    global user_connect
+    global user_connect, type_notification_audio
+
+    # suppression du compte
+    def supprimer_compte():
+        msg = Messagebox.okcancel(title="Confirmation suppression",
+                                  message="Voulez vous supprimer votre compte?\nCette action est irreversible")
+        if msg == "OK":
+            suppression = Suppression.Suppression(numero_profil.get())
+            erreur = suppression.suppression_compte()
+
+            if type_notification_audio:
+                parler(erreur["etat"])
+            else:
+                Messagebox.show_info(title="Information", message=erreur["message"])
+
+            if erreur["etat"]:
+                time.sleep(0.5)
+                app.destroy()
+
+        else:
+            Messagebox.show_info(title="Information", message="Nous avons pris votre reponse en compte")
+
+    def selection_profil():
+        global profil_path_modifie
+        profil_image = askopenfilename(title="Ajouter une photo de profil",
+                                       filetypes=(("JPG", "*.jpg"),
+                                                  ("JPEG", "*.jpeg"),
+                                                  ("PNG", "*.png")), defaultextension=".jpg")
+        profil_path_modifie.set(profil_image)
+        if not profil_path_modifie.get() == "":
+            btn_profil_modif.config(text=chemin_coupe(profil_path_modifie.get()))
+
+    def modification():
+        utilisateur_modif = Modification.Modification(prenom_profil.get(), nom_profil.get(), mdp_profil.get(),
+                                                      mdp_profil.get(), mail_profil.get(), age_profil.get(),
+                                                      profil_path_modifie.get(), numero_profil.get())
+        erreur = utilisateur_modif.verification()
+        if erreur["etat"]:
+            erreur = utilisateur_modif.modification()
+            if type_notification_audio:
+                parler(erreur["message"])
+            else:
+                Messagebox.show_warning(title="Attention", message=erreur["message"])
+
+            if erreur["etat"]:
+                # modification profil
+                utilisateur_modif.modification_profil()
+
+                infos_modifiees = Affichage.Affichage(mail_connexion.get())
+
+                # recuperation des informations
+                infos_modifiee = infos_modifiees.information_utilisateur()
+
+                # retrait anciens donnes
+                prenom_profil.delete(0, ttkb.END)
+                nom_profil.delete(0, ttkb.END)
+                mdp_profil.delete(0, ttkb.END)
+                mail_profil.delete(0, ttkb.END)
+                age_profil.delete(0, ttkb.END)
+
+                # ajout nouveau elt
+                prenom_profil.insert(0, infos_modifiee[1])
+                nom_profil.insert(0, infos_modifiee[2])
+                mdp_profil.insert(0, infos_modifiee[3])
+                mail_profil.insert(0, infos_modifiee[4])
+                age_profil.insert(0, infos_modifiee[5])
+
+        else:
+            if type_notification_audio:
+                parler(erreur["message"])
+            else:
+                Messagebox.show_warning(title="Attention", message=erreur["message"])
 
     if user_connect:
-
         user_infos = Affichage.Affichage(mail_connexion.get())
 
         # recuperation des informations
@@ -49,7 +123,7 @@ def show_profil():
         ttkb.Label(profil_frame, image=img_profil).grid(columnspan=4, column=0, row=0, padx=(30, 0))
 
         # modifier le information
-        btn_modifier_compte = ttkb.Button(profil_frame, text="Modifier", bootstyle="info outline")
+        btn_modifier_compte = ttkb.Button(profil_frame, text="Modifier", bootstyle="info outline", command=modification)
         btn_modifier_compte.grid(row=0, column=4, pady=(70, 0))
 
         # diviser
@@ -105,11 +179,12 @@ def show_profil():
         # profil
         ttkb.Label(profil_frame, text="Ajouter un profil: ", font=("poppins", 13)).grid(row=9, column=0, pady=(10, 20),
                                                                                         padx=(20, 0), sticky="e")
-        btn_profil_modif = ttkb.Button(profil_frame, text="Ajouter", bootstyle="success")
+        btn_profil_modif = ttkb.Button(profil_frame, text="Ajouter", bootstyle="success", command=selection_profil)
         btn_profil_modif.grid(row=9, column=1, pady=(10, 20), sticky="w")
 
         # supprimer le compte
-        btn_supprimer_compte = ttkb.Button(profil_frame, text="Supprimer", bootstyle="danger outline")
+        btn_supprimer_compte = ttkb.Button(profil_frame, text="Supprimer", bootstyle="danger outline",
+                                           command=supprimer_compte)
         btn_supprimer_compte.grid(row=10, column=4, pady=20)
 
 
@@ -700,14 +775,7 @@ def show_inscription():
 
                 actions.hide(3)
                 show_profil()
-
-                # configuration des champs
-                btn_connexion.config(state=ttkb.DISABLED)
-                inscription_btn.config(state=ttkb.DISABLED)
-                oublie_mdp.config(state=ttkb.DISABLED)
-
-                mail_connexion.config(state=ttkb.DISABLED)
-                mdp_connexion.config(state=ttkb.DISABLED)
+                actions.select(5)
 
             else:
                 if type_notification_audio:
@@ -802,6 +870,7 @@ def connexion():
         user_connect = True
         actions.hide(3)
         show_profil()
+        actions.select(5)
 
         if type_notification_audio:
             parler(erreur["msg"])
@@ -826,112 +895,59 @@ def change_duree(e):
 
 # ajout de taches
 def add_task():
-    global type_notification_audio, user_connect
+    global type_notification_audio, user_connect, tableau_numero_tache
 
     # verification de la connexion
     if user_connect:
 
-        # verification du champ
-        if not tache.get() == "":
+        # verification unite
+        if unite.get() == "Heures":
+            duree_minute = int(duree.get())*60
+        else:
+            duree_minute = int(duree.get())
 
-            # verification de la taille
-            if len(tache.get()) < 100:
+        ajouttache = Ajout_tache.AjoutTache(tache.get(), duree_minute, mail_connexion.get(), numero_tache.get())
+        erreur = ajouttache.verification()
 
-                # connexion bdd
-                bd = mysql.connector.connect(
-                    host="localhost",
-                    user="root",
-                    password="",
-                    database="gestion_temps_taches"
-                )
-                try:
-                    datas = bd.cursor()
-
-                    # selection de numero
-                    requet = "SELECT numero FROM utilisateur WHERE mail = %s AND mdp = %s"
-                    datas.execute(requet, (mail_connexion.get(), mdp_connexion.get()))
-                    numero = datas.fetchall()[0][0]
-
-                    # verification du nom de la tache
-                    requet = "SELECT * FROM taches WHERE nom_tache = %s AND jour = %s AND numero = %s"
-                    jour = jour_actuel()
-                    datas.execute(requet, (tache.get(), jour, numero))
-
-                    if len(datas.fetchall()) == 0:
-
-                        # traitement duree
-                        if unite.get() == "Heures":
-                            duree_minute = int(duree.get()) * 60
-                        else:
-                            duree_minute = int(duree.get())
-
-                        # insertion des donnees
-                        requet = "INSERT INTO taches(nom_tache, duree, numero, numero_tache, jour)" \
-                                 "VALUES(%s, %s, %s, %s, %s)"
-                        datas.execute(requet,
-                                      (tache.get(), duree_minute, numero, int(numero_tache.get()), jour_actuel()))
-                        bd.commit()
-
-                        # detection position
-                        plein_tache = False
-                        global tableau_numero_tache
-                        for j in range(len(tableau_numero_tache)):
-                            if int(numero_tache.get()) == tableau_numero_tache[j]:
-                                del tableau_numero_tache[j]
-                                if not len(tableau_numero_tache) == 0:
-                                    numero_tache.config(values=tableau_numero_tache)
-                                    numero_tache.current(0)
-                                    tache.delete(0, ttkb.END)
-                                else:
-                                    numero_tache.config(state=ttkb.DISABLED)
-                                    ajouter_tache.config(state=ttkb.DISABLED)
-                                    plein_tache = True
-                                break
-
-                        # activation debut de journee
-                        debut_journee.config(state=ttkb.ACTIVE)
-                        remplissage()
-
-                        # notification
-                        if type_notification_audio:
-                            parler("La tâche, a bien été ajoutée")
-                        else:
-                            Messagebox.show_info(title="Ajout de tache", message="La tâche, a bien été ajoutée",
-                                                 bootstyle="success")
-                        # si on a atteint la limite
-                        if plein_tache:
-                            # notification
-                            if type_notification_audio:
-                                parler("Vous avez déjà atteint la limite de neuf tâches, vous ne pouvez ajouter de "
-                                       "tâche!")
-                            else:
-                                Messagebox.show_info(title="Ajout de tache", bootstyle="success",
-                                                     message="Vous avez déjà atteint la limite de neuf tâches\n "
-                                                             "Vous ne pouvez ajouter de tâche!")
-                        return 0
-                    else:
-                        if type_notification_audio:
-                            parler("Le nom de la tâche existe déjà")
-                        else:
-                            Messagebox.show_info(title="Ajout tâches",
-                                                 message="Le nom de la tâche existe déjà!",
-                                                 bootstyle="success")
-                except:
-                    erreur_bdd()
+        if erreur["etat"]:
+            erreur = ajouttache.ajout_de_la_tache()
+            if type_notification_audio:
+                parler(erreur["msg"])
             else:
-                if type_notification_audio:
-                    parler("Le nom de la tâche est trop long")
-                else:
-                    Messagebox.show_info(title="Ajout tâches",
-                                         message="Le nom de la tâche est trop long!",
-                                         bootstyle="success")
+                Messagebox.show_warning(title="Attention", message=erreur["msg"])
+
+            if erreur["etat"]:
+                # detection position
+                plein_tache = False
+                for j in range(len(tableau_numero_tache)):
+                    if int(numero_tache.get()) == tableau_numero_tache[j]:
+                        del tableau_numero_tache[j]
+                        if not len(tableau_numero_tache) == 0:
+                            numero_tache.config(values=tableau_numero_tache)
+                            numero_tache.current(0)
+                            tache.delete(0, ttkb.END)
+                        else:
+                            numero_tache.config(state=ttkb.DISABLED)
+                            ajouter_tache.config(state=ttkb.DISABLED)
+                            plein_tache = True
+                        break
+
+                # si on a atteint la limite
+                if plein_tache:
+                    # notification
+                    if type_notification_audio:
+                        parler("Vous avez déjà atteint la limite de neuf tâches, vous ne pouvez plus ajouter de "
+                               "tâche!")
+                    else:
+                        Messagebox.show_info(title="Ajout de tache", bootstyle="success",
+                                             message="Vous avez déjà atteint la limite de neuf tâches\n "
+                                                     "Vous ne pouvez plus ajouter de tâche!")
+                remplissage()
         else:
             if type_notification_audio:
-                parler("Le nom de la tâche n'a pas été defini")
+                parler(erreur["msg"])
             else:
-                Messagebox.show_info(title="Ajout tâches",
-                                     message="Le nom de la tâche n'a pas été defini!",
-                                     bootstyle="success")
+                Messagebox.show_warning(title="Attention", message=erreur["msg"])
     else:
         if type_notification_audio:
             parler("Désolé vous n'êtes pas connecté! "
@@ -962,32 +978,30 @@ def commencer():
 
 # verification existence
 def existance():
+    import BDD
     global tache_exits, tableau_numero_tache
-    bdd = mysql.connector.connect(
-        host="localhost",
-        user="root",
-        password="",
-        database="gestion_temps_taches"
-    )
-    datas = bdd.cursor()
 
-    # selection de numero
-    requet = "SELECT numero FROM utilisateur WHERE mail = %s AND mdp = %s"
-    datas.execute(requet, (mail_connexion.get(), mdp_connexion.get()))
-    numero = datas.fetchall()[0][0]
+    if not len(tableau_numero_tache) == 0:
+        # selection de numero
+        BDD.bdd_cursor.execute("SELECT numero_tache FROM tache WHERE jour_actuel = %s AND fin_journee = %s AND "
+                               "numero IN (SELECT numero FROM utilisateur WHERE email = %s AND mdp = %s)",
+                               (datetime.datetime.now().date(), 0, mail_connexion.get(), mdp_connexion.get()))
+        resultats = BDD.bdd_cursor.fetchone()
+        print(resultats)
+        if not resultats is None and len(resultats) > 0:
+            tache_exits = True
 
-    datas.execute("SELECT numero_tache FROM taches WHERE jour = %s AND fin_journee = %s AND numero = %s",
-                  (jour_actuel(), "0", numero))
-    resultats = datas.fetchall()
-
-    if len(resultats) > 0:
-        tache_exits = True
-
-        for resultat in resultats:
-            tableau_numero_tache.remove(resultat[0])
+            for resultat in resultats:
+                tableau_numero_tache.remove(resultat)
 
         numero_tache.config(values=tableau_numero_tache)
         numero_tache.current(0)
+    else:
+        ajouter_tache.config(state=ttkb.DISABLED)
+        debut_journee.config(state=ttkb.ACTIVE)
+        tache.config(state=ttkb.DISABLED)
+        numero_tache.config(state=ttkb.DISABLED)
+        remplissage()
 
 
 # creation app
@@ -1007,6 +1021,7 @@ tache_exits = False
 tache_encours = False
 temps_ecoule_tache = 0
 profil_path = ttkb.StringVar(value="")
+profil_path_modifie = ttkb.StringVar(value="")
 
 # retrait tableau numero de tache
 tableau_numero_tache = [1, 2, 3, 4, 5, 6, 7, 8, 9]
@@ -1077,7 +1092,7 @@ ttkb.Label(ajout_frame, text="N. tâche: ", font=("poppins", 13)).grid(row=3, co
                                                                       sticky="e", padx=(25, 0))
 numero_tache = ttkb.Combobox(ajout_frame, font=("poppins", 13), values=tableau_numero_tache, width=25)
 numero_tache.grid(row=3, columnspan=2, column=2, pady=(0, 20), padx=(0, 25))
-numero_tache.current(0)
+# numero_tache.current(0)
 
 ttkb.Label(ajout_frame, text="Unité: ", font=("poppins", 13)).grid(row=4, columnspan=2, column=0, pady=(0, 20),
                                                                    sticky="e", padx=(25, 0))
@@ -1236,5 +1251,8 @@ ttkb.Button(parametre, text="Appliquer", bootstyle="success outline",
 
 ttkb.Label(parametre, image=image_label, text="GESTICADO", bootstyle="success", font=("poppins", 12, "bold"),
            compound="bottom").grid(columnspan=4, column=0)
+
+# existence
+existance()
 
 app.mainloop()

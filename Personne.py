@@ -16,7 +16,7 @@ class Personne:
 
     # verification des informations
     def verification(self):
-        if not (self.firstname or self.lastname or self.mdp1 or self.mdp2 or self.email or self.age) == "":
+        if not (self.firstname and self.lastname and self.mdp1 and self.mdp2 and self.email and self.age) == "":
             if ('@' and '.') in self.email:
                 if self.mdp1 == self.mdp2:
                     try:
@@ -38,9 +38,6 @@ class Personne:
             return {"etat": False, "message": "Completez tout les champs!"}
 
     def traitement_profil(self):
-        if self.chemin_photo == "":
-            self.chemin_photo = "./res/profil-default.png"
-
         image = Image.open(self.chemin_photo)
         nouvelle_image = image.resize((100, 100))
 
@@ -71,8 +68,6 @@ class Personne:
                 bd.bdd_cursor.execute(sql, values)
 
                 bd.bdd.commit()
-                bd.bdd_cursor.close()
-                bd.bdd.close()
 
                 return {"etat": True, "message": "Les donnees ont bien ete ajoutees!"}
             else:
