@@ -22,6 +22,7 @@ import Affichage
 import Modification
 import Suppression
 import Ajout_tache
+import Remplissage
 
 """" #################################### definitions de fonctions #################################### """
 
@@ -495,39 +496,25 @@ def finission_tache(nums, num_actuel):
         temps_ecoule_minute = 1
 
     # enregistrez les donnees
-    try:
-        bd = mysql.connector.connect(
-            host="localhost",
-            password="",
-            user="root",
-            database="gestion_temps_taches",
-        )
+    fintache = Remplissage.Remplissage(mail_connexion.get())
+    erreur = fintache.fin_tache(temps_ecoule_minute, num_actuel)
 
-        data = bd.cursor()
-
-        # recuperation du numero
-        requet = "SELECT numero FROM utilisateur WHERE mail = %s"
-        data.execute(requet, (mail_connexion.get(),))
-        numero = data.fetchall()[0][0]
-
-        # update le temps effectue
-        requet = "UPDATE taches SET temps_effectue = %s WHERE numero = %s AND jour = %s AND numero_tache = %s"
-        data.execute(requet, (temps_ecoule_minute, numero, jour_actuel(), int(num_actuel)))
-
-        bd.commit()
-
+    if erreur["etat"]:
         label_tache = label_taches[int(num_actuel) - 1]
         label_tache[0].config(bootstyle="success")
         label_tache[1].config(bootstyle="success")
         fin_tache.config(state=ttkb.DISABLED)
         fin_journee.config(state=ttkb.ACTIVE, command=fermer_journee)
-        show_bilan()
+        # show_bilan()
 
         if len(nums) != 0:
             debut_tache.config(state=ttkb.ACTIVE)
-
-    except:
-        erreur_bdd()
+    else:
+        global type_notification_audio
+        if type_notification_audio:
+            parler(erreur["msg"])
+        else:
+            Messagebox.show_warning(title="Attention", message=erreur["msg"])
 
 
 # chronomrtre
@@ -568,85 +555,71 @@ def debuter_tache():
         selection_numero_tache.config(values=nums)
         selection_numero_tache.current(0)
 
-    # activation et descativation
-    fin_journee.config(state=ttkb.DISABLED)
-    debut_tache.config(state=ttkb.DISABLED)
-    fin_tache.config(state=ttkb.ACTIVE, command=lambda: finission_tache(nums, num_actuel))
+    # update heure de debut
+    heuredebut = Remplissage.Remplissage(mail_connexion.get())
+    erreur = heuredebut.heure_debut(num_actuel)
+    if erreur["etat"]:
 
-    # chronometre
-    tache_encours = True
-    chronometre()
+        # activation et descativation
+        fin_journee.config(state=ttkb.DISABLED)
+        debut_tache.config(state=ttkb.DISABLED)
+        fin_tache.config(state=ttkb.ACTIVE, command=lambda: finission_tache(nums, num_actuel))
+
+        # chronometre
+        tache_encours = True
+        chronometre()
+    else:
+        global type_notification_audio
+        if type_notification_audio:
+            parler(erreur["msg"])
+        else:
+            Messagebox.show_warning(title="Attention", message=erreur["msg"])
 
 
 # debut de journee
 def debuter_journee():
-    # desactivation  des champs
-    tache.config(state=ttkb.DISABLED)
-    ajouter_tache.config(state=ttkb.DISABLED)
-    debut_journee.config(state=ttkb.DISABLED)
+    debutjournee = Remplissage.Remplissage(mail_connexion.get())
+    erreur = debutjournee.affichage_tache()
 
-    # activations des champs
-    debut_tache.config(state=ttkb.ACTIVE)
-    fin_journee.config(state=ttkb.ACTIVE, command=fermer_journee)
-
-    # connexion bdd
-    bd = mysql.connector.connect(
-        host="localhost",
-        password="",
-        user="root",
-        database="gestion_temps_taches"
-    )
-
-    try:
-        # recuperation du numero
-        data = bd.cursor()
-        requet = "SELECT numero FROM utilisateur WHERE mail = %s"
-        data.execute(requet, (mail_connexion.get(),))
-        numero = data.fetchall()[0][0]
-
-        # recuperation des numero de taches
-        requet = "SELECT numero_tache FROM taches WHERE numero = %s AND jour = %s"
-        data.execute(requet, (numero, jour_actuel()))
-        results = data.fetchall()
-
+    if erreur["etat"]:
         nums = []
-        for result in results:
-            nums.append(result[0])
+        resultats = erreur["donnees"]
+        for i in range(len(resultats)):
+            nums.append(resultats[i][0])
         nums = sorted(nums)
         selection_numero_tache.config(values=nums, state=ttkb.ACTIVE)
         selection_numero_tache.current(0)
         actions.hide(0)
         actions.select(1)
 
-    except:
-        erreur_bdd()
+        # desactivation  des champs
+        tache.config(state=ttkb.DISABLED)
+        ajouter_tache.config(state=ttkb.DISABLED)
+        debut_journee.config(state=ttkb.DISABLED)
+
+        # activations des champs
+        debut_tache.config(state=ttkb.ACTIVE)
+        fin_journee.config(state=ttkb.ACTIVE, command=fermer_journee)
+
+    else:
+        global type_notification_audio
+        if type_notification_audio:
+            parler(erreur["msg"])
+        else:
+            Messagebox.show_warning(title="Attention", message=erreur["msg"])
 
 
 # remplissage
 def remplissage():
     # verification si la taches exite
-
     debut_journee.config(state=ttkb.ACTIVE)
-
     visualisation_texte.grid_forget()
 
-    # connexion base de donnee
-    bd = mysql.connector.connect(
-        host="localhost",
-        user="root",
-        password="",
-        database="gestion_temps_taches"
-    )
-    try:
-        data = bd.cursor()
-        requet = "SELECT numero FROM utilisateur WHERE mail = %s"
-        data.execute(requet, (mail_connexion.get(),))
-        numero = data.fetchall()[0][0]
+    remplissage_tache = Remplissage.Remplissage(mail_connexion.get())
+    erreur = remplissage_tache.affichage_tache()
 
-        # selection tache
-        requet = "SELECT numero_tache, nom_tache, duree FROM taches WHERE numero = %s AND jour = %s"
-        data.execute(requet, (numero, jour_actuel()))
-        results = data.fetchall()
+    if erreur["etat"]:
+        results = erreur["donnees"]
 
         global label_taches, label_taches_warm
         i = 2
@@ -661,11 +634,12 @@ def remplissage():
             i += 1
 
             label_taches.append((numero_duree, nom))
-
-
-
-    except:
-        erreur_bdd()
+    else:
+        global type_notification_audio
+        if type_notification_audio:
+            parler(erreur["msg"])
+        else:
+            Messagebox.show_warning(title="Attention", message=erreur["msg"])
 
 
 # jour actuel
@@ -777,6 +751,9 @@ def show_inscription():
                 show_profil()
                 actions.select(5)
 
+                # existence
+                existance()
+
             else:
                 if type_notification_audio:
                     parler(erreur["message"])
@@ -872,6 +849,9 @@ def connexion():
         show_profil()
         actions.select(5)
 
+        # existence
+        existance()
+
         if type_notification_audio:
             parler(erreur["msg"])
         else:
@@ -902,7 +882,7 @@ def add_task():
 
         # verification unite
         if unite.get() == "Heures":
-            duree_minute = int(duree.get())*60
+            duree_minute = int(duree.get()) * 60
         else:
             duree_minute = int(duree.get())
 
@@ -984,18 +964,19 @@ def existance():
     if not len(tableau_numero_tache) == 0:
         # selection de numero
         BDD.bdd_cursor.execute("SELECT numero_tache FROM tache WHERE jour_actuel = %s AND fin_journee = %s AND "
-                               "numero IN (SELECT numero FROM utilisateur WHERE email = %s AND mdp = %s)",
+                               "numero  IN (SELECT numero FROM utilisateur WHERE email = %s AND mdp = %s)",
                                (datetime.datetime.now().date(), 0, mail_connexion.get(), mdp_connexion.get()))
-        resultats = BDD.bdd_cursor.fetchone()
-        print(resultats)
-        if not resultats is None and len(resultats) > 0:
+        resultats = BDD.bdd_cursor.fetchall()
+        if len(resultats) > 0:
             tache_exits = True
 
             for resultat in resultats:
-                tableau_numero_tache.remove(resultat)
+                tableau_numero_tache.remove(resultat[0])
 
-        numero_tache.config(values=tableau_numero_tache)
-        numero_tache.current(0)
+            numero_tache.config(values=tableau_numero_tache)
+            numero_tache.current(0)
+        remplissage()
+
     else:
         ajouter_tache.config(state=ttkb.DISABLED)
         debut_journee.config(state=ttkb.ACTIVE)
@@ -1092,7 +1073,7 @@ ttkb.Label(ajout_frame, text="N. tâche: ", font=("poppins", 13)).grid(row=3, co
                                                                       sticky="e", padx=(25, 0))
 numero_tache = ttkb.Combobox(ajout_frame, font=("poppins", 13), values=tableau_numero_tache, width=25)
 numero_tache.grid(row=3, columnspan=2, column=2, pady=(0, 20), padx=(0, 25))
-# numero_tache.current(0)
+numero_tache.current(0)
 
 ttkb.Label(ajout_frame, text="Unité: ", font=("poppins", 13)).grid(row=4, columnspan=2, column=0, pady=(0, 20),
                                                                    sticky="e", padx=(25, 0))
@@ -1251,8 +1232,5 @@ ttkb.Button(parametre, text="Appliquer", bootstyle="success outline",
 
 ttkb.Label(parametre, image=image_label, text="GESTICADO", bootstyle="success", font=("poppins", 12, "bold"),
            compound="bottom").grid(columnspan=4, column=0)
-
-# existence
-existance()
 
 app.mainloop()
