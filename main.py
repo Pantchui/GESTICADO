@@ -23,6 +23,7 @@ import Modification
 import Suppression
 import Ajout_tache
 import Remplissage
+import Bilan
 
 """" #################################### definitions de fonctions #################################### """
 
@@ -280,205 +281,195 @@ def fermer_journee():
 
 # gestion du bilan
 def show_bilan():
-    # traitement de dnnee
-    bd = mysql.connector.connect(
-        host="localhost",
-        password="",
-        user="root",
-        database="gestion_temps_taches",
-    )
+    # gestion des bilan
+    bilan_utilisateur = Bilan.Bilan(mail_connexion.get())
 
-    data = bd.cursor()
+    """" #################################### bilan #################################### """
 
-    # recuperation du numero
-    requet = "SELECT numero FROM utilisateur WHERE mail = %s"
-    data.execute(requet, (mail_connexion.get(),))
-    numero = data.fetchall()[0][0]
+    # supression de l'element
+    bilan_texte.grid_forget()
 
-    # nombre de tache
-    requet = "SELECT * FROM taches WHERE numero = %s AND jour = %s"
-    data.execute(requet, (numero, jour_actuel()))
-    try:
-        # recuperation des informations
-        toutes_les_informations = data.fetchall()
+    # rapport general graphique
+    ttkb.Label(bilan_frame, text="Rapport général", font=("poppins", 13)).grid(row=1, pady=20, column=0,
+                                                                               columnspan=3,
+                                                                               sticky="w")
+    style = ttkb.Style()
+    style.configure("B.TLabel", font=("poppins", 5))
 
-        # nbr de taches final
-        nbr_taches, nbr_taches_effectuees, taches_avt_delai, \
-            taches_apr_delai, taches_pdt_delai = 0, 0, 0, 0, 0
-        for i in range(len(toutes_les_informations)):
-            nbr_taches += 1
-            if toutes_les_informations[i][2] > 0:
-                nbr_taches_effectuees += 1
+    # meter
+    if round((bilan_utilisateur.get_nbr_taches_effectuees() / bilan_utilisateur.get_nbr_taches_totales()) * 100) > 50:
+        ttkb.Meter(bilan_frame, bootstyle="success", metertype="semi", subtextstyle="B.TLabel",
+                   textright=f"/{bilan_utilisateur.get_nbr_taches_totales()} tâches", metersize=130, interactive=False,
+                   textfont=("poppins", 12, "bold"),
+                   subtext="complétées", subtextfont=("poppins", 7),
+                   amounttotal=bilan_utilisateur.get_nbr_taches_totales(), stripethickness=24,
+                   amountused=bilan_utilisateur.get_nbr_taches_effectuees()).grid(row=2, column=0, pady=20, padx=(0, 5))
+    else:
+        ttkb.Meter(bilan_frame, bootstyle="danger", metertype="semi", subtextstyle="B.TLabel",
+                   textright=f"/{bilan_utilisateur.get_nbr_taches_totales()} tâches", metersize=130, interactive=False,
+                   textfont=("poppins", 12, "bold"),
+                   subtext="complétées", subtextfont=("poppins", 7),
+                   amounttotal=bilan_utilisateur.get_nbr_taches_totales(), stripethickness=24,
+                   amountused=bilan_utilisateur.get_nbr_taches_effectuees()).grid(row=2, column=0, pady=20, padx=(0, 5))
 
-                # verification par rapport au delai
-                if toutes_les_informations[i][2] < toutes_les_informations[i][1]:
-                    taches_avt_delai += 1
-                if toutes_les_informations[i][2] > toutes_les_informations[i][1]:
-                    taches_apr_delai += 1
-                if toutes_les_informations[i][2] == toutes_les_informations[i][1]:
-                    taches_pdt_delai += 1
+    # temps
+    if bilan_utilisateur.get_temps_total_tache() > bilan_utilisateur.get_temps_total_tache_effectuees():
+        ttkb.Meter(bilan_frame, bootstyle="success", metertype="semi", subtextstyle="B.TLabel",
+                   textright=f"/{bilan_utilisateur.get_temps_total_tache()}min", metersize=130, interactive=False,
+                   textfont=("poppins", 12, "bold"), stripethickness=24, subtext="consommées",
+                   subtextfont=("poppins", 7), amounttotal=bilan_utilisateur.get_temps_total_tache(),
+                   amountused=bilan_utilisateur.get_temps_total_tache_effectuees()).grid(row=2, column=1, pady=20,
+                                                                                         padx=5)
+    else:
+        ttkb.Meter(bilan_frame, bootstyle="danger", metertype="semi", subtextstyle="B.TLabel",
+                   textright=f"/{bilan_utilisateur.get_temps_total_tache()}min", metersize=130, interactive=False,
+                   textfont=("poppins", 12, "bold"), subtext="consommées", subtextfont=("poppins", 7),
+                   amounttotal=bilan_utilisateur.get_temps_total_tache(),
+                   stripethickness=24,
+                   amountused=bilan_utilisateur.get_temps_total_tache_effectuees()).grid(row=2, column=1, pady=20,
+                                                                                         padx=5)
 
-        # temps total
-        temps_total_tache, temps_total_tache_effectue = 0, 0
-        for tt_information in toutes_les_informations:
-            temps_total_tache += int(tt_information[1])
-            temps_total_tache_effectue += int(tt_information[2])
+    # debordement
+    if bilan_utilisateur.get_temps_debordee() < 60:
+        ttkb.Meter(bilan_frame, bootstyle="success", metertype="semi", subtextstyle="B.TLabel",
+                   textright="min/160", metersize=130, interactive=False, textfont=("poppins", 12, "bold"),
+                   subtext="ajoutés", amountused=bilan_utilisateur.get_temps_debordee(), subtextfont=("poppins", 7),
+                   amounttotal=160,
+                   stripethickness=24).grid(row=2, column=2, pady=20, padx=(5, 0))
+    else:
+        ttkb.Meter(bilan_frame, bootstyle="danger", metertype="semi", subtextstyle="B.TLabel",
+                   textright="min/160", metersize=130, interactive=False, textfont=("poppins", 12, "bold"),
+                   subtext="ajoutés", amountused=bilan_utilisateur.get_temps_debordee(), subtextfont=("poppins", 7),
+                   amounttotal=160,
+                   stripethickness=24).grid(row=2, column=2, pady=20, padx=(5, 0))
 
-        # temps deborde
-        val = temps_total_tache_effectue - temps_total_tache
-        temps_deborde = val if val > 0 else 0
+    # rapport par taches
+    ttkb.Label(bilan_frame, text="Rapport par tâche", font=("poppins", 13)).grid(row=3, pady=20, column=0,
+                                                                                 columnspan=3,
+                                                                                 sticky="w")
 
-        """" #################################### bilan #################################### """
+    style = ttkb.Style()
+    style.configure("B.TLabel", font=("poppins", 5))
 
-        # supression de l'element
-        bilan_texte.grid_forget()
-
-        # rapport general graphique
-        ttkb.Label(bilan_frame, text="Rapport général", font=("poppins", 13)).grid(row=1, pady=20, column=0,
-                                                                                   columnspan=3,
-                                                                                   sticky="w")
-        style = ttkb.Style()
-        style.configure("B.TLabel", font=("poppins", 5))
-
-        # meter
-        if round((nbr_taches_effectuees / nbr_taches) * 100) > 50:
-            ttkb.Meter(bilan_frame, bootstyle="success", metertype="semi", subtextstyle="B.TLabel",
-                       textright=f"/{nbr_taches} tâches", metersize=130, interactive=False,
+    # meter
+    r, c = 4, 0
+    for toutes_les_information in bilan_utilisateur.informations_complete():
+        if toutes_les_information[2] > toutes_les_information[1]:
+            ttkb.Meter(bilan_frame, bootstyle="danger", subtextstyle="B.TLabel",
+                       textright=f"min/{toutes_les_information[1]}", metersize=130,
                        textfont=("poppins", 12, "bold"),
-                       subtext="complétées", subtextfont=("poppins", 7), amounttotal=nbr_taches, stripethickness=24,
-                       amountused=nbr_taches_effectuees).grid(row=2, column=0, pady=20, padx=(0, 5))
+                       subtext=f"tâche {toutes_les_information[3]}", subtextfont=("poppins", 7),
+                       amounttotal=toutes_les_information[1],
+                       amountused=toutes_les_information[2]).grid(row=r, column=c, pady=20, padx=5)
         else:
-            ttkb.Meter(bilan_frame, bootstyle="danger", metertype="semi", subtextstyle="B.TLabel",
-                       textright=f"/{nbr_taches} tâches", metersize=130, interactive=False,
+            ttkb.Meter(bilan_frame, bootstyle="success", subtextstyle="B.TLabel",
+                       textright=f"min/{toutes_les_information[1]}", metersize=130,
                        textfont=("poppins", 12, "bold"),
-                       subtext="complétées", subtextfont=("poppins", 7), amounttotal=nbr_taches, stripethickness=24,
-                       amountused=nbr_taches_effectuees).grid(row=2, column=0, pady=20, padx=(0, 5))
+                       subtext=f"tâche {toutes_les_information[3]}", subtextfont=("poppins", 7),
+                       amounttotal=toutes_les_information[1],
+                       amountused=toutes_les_information[2]).grid(row=r, column=c, pady=20, padx=5)
+        c += 1
+        if c == 3:
+            r += 1
+            c = 0
 
-        # temps
-        if temps_total_tache > temps_total_tache_effectue:
-            ttkb.Meter(bilan_frame, bootstyle="success", metertype="semi", subtextstyle="B.TLabel",
-                       textright=f"/{temps_total_tache}min", metersize=130, interactive=False,
-                       textfont=("poppins", 12, "bold"), stripethickness=24,
-                       subtext="consommées", subtextfont=("poppins", 7), amounttotal=temps_total_tache,
-                       amountused=temps_total_tache_effectue).grid(row=2, column=1, pady=20, padx=5)
-        else:
-            ttkb.Meter(bilan_frame, bootstyle="danger", metertype="semi", subtextstyle="B.TLabel",
-                       textright=f"/{temps_total_tache}min", metersize=130, interactive=False,
-                       textfont=("poppins", 12, "bold"),
-                       subtext="consommées", subtextfont=("poppins", 7), amounttotal=temps_total_tache,
-                       stripethickness=24,
-                       amountused=temps_total_tache_effectue).grid(row=2, column=1, pady=20, padx=5)
-
-        # debordement
-        if temps_deborde < 60:
-            ttkb.Meter(bilan_frame, bootstyle="success", metertype="semi", subtextstyle="B.TLabel",
-                       textright="min/160", metersize=130, interactive=False, textfont=("poppins", 12, "bold"),
-                       subtext="ajoutés", amountused=temps_deborde, subtextfont=("poppins", 7), amounttotal=160,
-                       stripethickness=24).grid(row=2, column=2, pady=20, padx=(5, 0))
-        else:
-            ttkb.Meter(bilan_frame, bootstyle="danger", metertype="semi", subtextstyle="B.TLabel",
-                       textright="min/160", metersize=130, interactive=False, textfont=("poppins", 12, "bold"),
-                       subtext="ajoutés", amountused=temps_deborde, subtextfont=("poppins", 7), amounttotal=160,
-                       stripethickness=24).grid(row=2, column=2, pady=20, padx=(5, 0))
-
-        # rapport par taches
-        ttkb.Label(bilan_frame, text="Rapport par tâche", font=("poppins", 13)).grid(row=3, pady=20, column=0,
-                                                                                     columnspan=3,
-                                                                                     sticky="w")
-
-        style = ttkb.Style()
-        style.configure("B.TLabel", font=("poppins", 5))
-
-        # meter
-        r, c = 4, 0
-        for toutes_les_information in toutes_les_informations:
-            if toutes_les_information[2] > toutes_les_information[1]:
-                ttkb.Meter(bilan_frame, bootstyle="danger", subtextstyle="B.TLabel",
-                           textright=f"min/{toutes_les_information[1]}", metersize=130,
-                           textfont=("poppins", 12, "bold"),
-                           subtext=f"tâche {toutes_les_information[4]}", subtextfont=("poppins", 7),
-                           amounttotal=toutes_les_information[1],
-                           amountused=toutes_les_information[2]).grid(row=r, column=c, pady=20, padx=5)
-            else:
-                ttkb.Meter(bilan_frame, bootstyle="success", subtextstyle="B.TLabel",
-                           textright=f"min/{toutes_les_information[1]}", metersize=130,
-                           textfont=("poppins", 12, "bold"),
-                           subtext=f"tâche {toutes_les_information[4]}", subtextfont=("poppins", 7),
-                           amounttotal=toutes_les_information[1],
-                           amountused=toutes_les_information[2]).grid(row=r, column=c, pady=20, padx=5)
-            c += 1
-            if c == 3:
-                r += 1
+    # rapport detaille par tache
+    r = r + 1
+    ttkb.Label(bilan_frame, text="Rapport détaillé par tâche", font=("poppins", 13)).grid(row=r,
+                                                                                          pady=(20, 10),
+                                                                                          column=0,
+                                                                                          columnspan=3,
+                                                                                          sticky="w")
+    frame_detail = ttkb.Frame(bilan_frame)
+    frame_detail.grid(row=r + 1, column=0, columnspan=3)
+    frame_detail.grid_columnconfigure((0, 1, 2, 3), weight=1)
+    nbr_tour = 0
+    c = 0
+    l = 0
+    for toutes_les_information in bilan_utilisateur.informations_complete():
+        if toutes_les_information[2] > 0:
+            ttkb.Label(frame_detail, font=("poppins", 10), bootstyle="info",
+                       text=f"{toutes_les_information[3]} - {toutes_les_information[0]}\n"
+                            f"  Numero: {toutes_les_information[6]}\n"
+                            f"  Jour: {toutes_les_information[4]}.\n"
+                            f"  Duree: {toutes_les_information[1]}min\n"
+                            f"  Temps effectué: {toutes_les_information[2]}min.\n"
+                            f"  (de {toutes_les_information[7]} a {toutes_les_information[8]})"
+                       ).grid(row=l, pady=20, padx=20, column=c, columnspan=2, sticky="w")
+            nbr_tour += 1
+            if nbr_tour == 1:
+                c = 2
+            elif nbr_tour == 2:
                 c = 0
+                nbr_tour = 0
+                l += 1
 
-        # rapport debordement de duree
-        ttkb.Label(bilan_frame, text="Rapport débordement de durée", font=("poppins", 13)).grid(row=r + 1,
-                                                                                                pady=(20, 10),
-                                                                                                column=0,
-                                                                                                columnspan=3,
-                                                                                                sticky="w")
-        r = r + 2
-        exist = False
-        for toutes_les_information in toutes_les_informations:
-            if toutes_les_information[2] > toutes_les_information[1]:
-                ttkb.Label(bilan_frame,
-                           text=f"{toutes_les_information[4]}. {toutes_les_information[0]}: {toutes_les_information[2] - toutes_les_information[1]} minutes",
-                           font=("poppins", 12),
-                           bootstyle="danger").grid(row=r, column=0, columnspan=3, sticky="w", padx=(15, 0))
-                r += 1
-                exist = True
-
-        if not exist:
+    # rapport debordement de duree
+    r = r + 2
+    ttkb.Label(bilan_frame, text="Rapport débordement de durée", font=("poppins", 13)).grid(row=r, pady=(20, 10),
+                                                                                            column=0, columnspan=3,
+                                                                                            sticky="w")
+    r = r + 2
+    exist = False
+    for toutes_les_information in bilan_utilisateur.informations_complete():
+        if toutes_les_information[2] > toutes_les_information[1]:
             ttkb.Label(bilan_frame,
-                       text=f"Pas de tâches",
+                       text=f"{toutes_les_information[3]}. {toutes_les_information[0]}: {toutes_les_information[2] - toutes_les_information[1]} minutes",
                        font=("poppins", 12),
-                       bootstyle="info").grid(row=r, column=0, columnspan=3, sticky="w", padx=(15, 0))
+                       bootstyle="danger").grid(row=r, column=0, columnspan=3, sticky="w", padx=(15, 0))
+            r += 1
+            exist = True
 
-        # rapport general theorique
-        ttkb.Label(bilan_frame, text="Rapport géneral théorique", font=("poppins", 13)).grid(row=r + 4, pady=(20, 10),
-                                                                                             column=0,
-                                                                                             columnspan=3, sticky="w")
+    if not exist:
+        ttkb.Label(bilan_frame,
+                   text=f"Pas de tâches",
+                   font=("poppins", 12),
+                   bootstyle="info").grid(row=r, column=0, columnspan=3, sticky="w", padx=(15, 0))
 
-        ttkb.Label(bilan_frame,
-                   text=f"Accomplissement des tâches: {round((nbr_taches_effectuees / nbr_taches) * 100)}%",
-                   font=("poppins", 12),
-                   bootstyle="info").grid(row=r + 5, column=0, columnspan=3, sticky="w", padx=(15, 0))
-        ttkb.Label(bilan_frame,
-                   text=f"Utilisation du temps: {round((temps_total_tache_effectue / temps_total_tache) * 100)}%",
-                   font=("poppins", 12),
-                   bootstyle="info").grid(row=r + 6, column=0, columnspan=3, sticky="w", padx=(15, 0))
-        ttkb.Label(bilan_frame,
-                   text=f"Temps ajoutée: {round((temps_deborde / temps_total_tache) * 100)}% du temps initial",
-                   font=("poppins", 12),
-                   bootstyle="info").grid(row=r + 7, column=0, columnspan=3, sticky="w", padx=(15, 0))
-        ttkb.Label(bilan_frame,
-                   text=f"Tâches non terminées: {round(100 - ((nbr_taches_effectuees / nbr_taches) * 100))}%",
-                   font=("poppins", 12),
-                   bootstyle="info").grid(row=r + 8, column=0, columnspan=3, sticky="w", padx=(15, 0))
+    # rapport general theorique
+    ttkb.Label(bilan_frame, text="Rapport géneral théorique", font=("poppins", 13)).grid(row=r + 4, pady=(20, 10),
+                                                                                         column=0,
+                                                                                         columnspan=3, sticky="w")
 
-        ttkb.Separator(bilan_frame, bootstyle="info").grid(row=r + 9, column=0, columnspan=3, sticky="nsew",
-                                                           padx=(15, 0), pady=20)
+    ttkb.Label(bilan_frame,
+               text=f"Accomplissement des tâches: "
+                    f"{round((bilan_utilisateur.get_nbr_taches_effectuees() / bilan_utilisateur.get_nbr_taches_totales()) * 100)}%",
+               font=("poppins", 12),
+               bootstyle="info").grid(row=r + 5, column=0, columnspan=3, sticky="w", padx=(15, 0))
+    ttkb.Label(bilan_frame,
+               text=f"Utilisation du temps: "
+                    f"{round((bilan_utilisateur.get_temps_total_tache_effectuees() / bilan_utilisateur.get_temps_total_tache()) * 100)}%",
+               font=("poppins", 12),
+               bootstyle="info").grid(row=r + 6, column=0, columnspan=3, sticky="w", padx=(15, 0))
+    ttkb.Label(bilan_frame,
+               text=f"Temps ajoutée: "
+                    f"{round((bilan_utilisateur.get_temps_debordee() / bilan_utilisateur.get_temps_total_tache()) * 100)}% du temps initial",
+               font=("poppins", 12),
+               bootstyle="info").grid(row=r + 7, column=0, columnspan=3, sticky="w", padx=(15, 0))
+    ttkb.Label(bilan_frame,
+               text=f"Tâches non terminées: "
+                    f"{round(100 - ((bilan_utilisateur.get_nbr_taches_effectuees() / bilan_utilisateur.get_nbr_taches_totales()) * 100))}%",
+               font=("poppins", 12),
+               bootstyle="info").grid(row=r + 8, column=0, columnspan=3, sticky="w", padx=(15, 0))
 
-        ttkb.Label(bilan_frame,
-                   text=f"Tâches terminées avant le delai: {round((taches_avt_delai / nbr_taches_effectuees) * 100)}% ({taches_avt_delai} tâche(s)/{nbr_taches_effectuees})",
-                   font=("poppins", 12),
-                   bootstyle="info").grid(row=r + 10, column=0, columnspan=3, sticky="w", padx=(15, 0))
-        ttkb.Label(bilan_frame,
-                   text=f"Tâches terminées dans le delai: {round((taches_pdt_delai / nbr_taches_effectuees) * 100)}% ({taches_pdt_delai} tâche(s)/{nbr_taches_effectuees})",
-                   font=("poppins", 12),
-                   bootstyle="info").grid(row=r + 11, column=0, columnspan=3, sticky="w", padx=(15, 0))
-        ttkb.Label(bilan_frame,
-                   text=f"Tâches terminées après le delai: {round((taches_apr_delai / nbr_taches_effectuees) * 100)}% ({taches_apr_delai} tâche(s)/{nbr_taches_effectuees})",
-                   font=("poppins", 12),
-                   bootstyle="info").grid(row=r + 12, column=0, columnspan=3, sticky="w", padx=(15, 0))
+    ttkb.Separator(bilan_frame, bootstyle="info").grid(row=r + 9, column=0, columnspan=3, sticky="nsew",
+                                                       padx=(15, 0), pady=20)
 
-        ttkb.Button(bilan_frame, text="Fermer", bootstyle="outline danger",
-                    command=fermer).grid(row=r + 13, column=2, pady=(30, 10))
+    ttkb.Label(bilan_frame,
+               text=f"Tâches terminées avant le delai: {round((bilan_utilisateur.get_nbr_tache_avant_delai() / bilan_utilisateur.get_nbr_taches_effectuees()) * 100)}% ({bilan_utilisateur.get_nbr_tache_avant_delai()} tâche(s)/{bilan_utilisateur.get_nbr_taches_effectuees()})",
+               font=("poppins", 12),
+               bootstyle="info").grid(row=r + 10, column=0, columnspan=3, sticky="w", padx=(15, 0))
+    ttkb.Label(bilan_frame,
+               text=f"Tâches terminées dans le delai: {round((bilan_utilisateur.get_nbr_tache_dans_delai() / bilan_utilisateur.get_nbr_taches_effectuees()) * 100)}% ({bilan_utilisateur.get_nbr_tache_dans_delai()} tâche(s)/{bilan_utilisateur.get_nbr_taches_effectuees()})",
+               font=("poppins", 12),
+               bootstyle="info").grid(row=r + 11, column=0, columnspan=3, sticky="w", padx=(15, 0))
+    ttkb.Label(bilan_frame,
+               text=f"Tâches terminées après le delai: {round((bilan_utilisateur.get_nbr_tache_apres_delai() / bilan_utilisateur.get_nbr_taches_effectuees()) * 100)}% ({bilan_utilisateur.get_nbr_tache_apres_delai()} tâche(s)/{bilan_utilisateur.get_nbr_taches_effectuees()})",
+               font=("poppins", 12),
+               bootstyle="info").grid(row=r + 12, column=0, columnspan=3, sticky="w", padx=(15, 0))
 
-    except:
-        erreur_bdd()
-        bilan_texte.config(text="Nous avons rencontrez une \nerreur. "
-                                "Merci de reessayer!")
+    ttkb.Button(bilan_frame, text="Fermer", bootstyle="outline danger",
+                command=fermer).grid(row=r + 13, column=2, pady=(30, 10))
 
 
 # fin de tache
@@ -505,7 +496,7 @@ def finission_tache(nums, num_actuel):
         label_tache[1].config(bootstyle="success")
         fin_tache.config(state=ttkb.DISABLED)
         fin_journee.config(state=ttkb.ACTIVE, command=fermer_journee)
-        # show_bilan()
+        show_bilan()
 
         if len(nums) != 0:
             debut_tache.config(state=ttkb.ACTIVE)
@@ -975,7 +966,7 @@ def existance():
 
             numero_tache.config(values=tableau_numero_tache)
             numero_tache.current(0)
-        remplissage()
+            remplissage()
 
     else:
         ajouter_tache.config(state=ttkb.DISABLED)
