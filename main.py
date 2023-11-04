@@ -2,7 +2,6 @@
 import random
 import math
 import time
-import datetime
 from tkinter.filedialog import askopenfilename
 
 import pyttsx3
@@ -10,9 +9,8 @@ import datetime
 
 import ttkbootstrap as ttkb
 from ttkbootstrap.scrolled import ScrolledFrame
-from ttkbootstrap.dialogs import Messagebox
+from ttkbootstrap.dialogs import Messagebox, Querybox
 
-import mysql.connector
 from PIL import Image, ImageTk
 
 import Personne
@@ -26,6 +24,34 @@ import Remplissage
 import Bilan
 
 """" #################################### definitions de fonctions #################################### """
+
+
+# ancien bilan
+def ancien_bilan():
+    global user_connect, type_notification_audio
+    if user_connect:
+        date = Querybox().get_date()
+        import BDD as bd
+        sql = "SELECT COUNT(*) FROM tache WHERE jour_actuel = %s AND " \
+              "numero IN (SELECT numero FROM utilisateur WHERE email = %s)"
+
+        bd.bdd_cursor.execute(sql, (date, mail_connexion.get()))
+        if bd.bdd_cursor.fetchone()[0] > 0:
+            show_bilan(date)
+            app.update()
+        else:
+            if type_notification_audio:
+                parler("Le jour entre n'existe pas!")
+            else:
+                Messagebox.show_warning(title="Attention",
+                                        message="Le jour entre n'existe pas!")
+    else:
+        if type_notification_audio:
+            parler("Connectez vous, avant d'afficher un ancien bilan!")
+        else:
+            Messagebox.show_warning(title="Attention",
+                                    message="Connectez vous, avant d'afficher un ancien bilan!")
+        actions.select(3)
 
 
 # profil
@@ -247,42 +273,36 @@ def fermer():
 
 # fin journee
 def fermer_journee():
+    global type_notification_audio
+    import BDD
     # enregistrez les donnees
     try:
-        bd = mysql.connector.connect(
-            host="localhost",
-            password="",
-            user="root",
-            database="gestion_temps_taches",
-        )
-
-        data = bd.cursor()
-
         # recuperation du numero
-        requet = "SELECT numero FROM utilisateur WHERE mail = %s"
-        data.execute(requet, (mail_connexion.get(),))
-        numero = data.fetchall()[0][0]
-
-        # update le temps effectue
-        requet = "UPDATE taches SET fin_journee = %s WHERE numero = %s AND jour = %s"
-        data.execute(requet, ("1", numero, jour_actuel()))
-
-        bd.commit()
+        sql = "UPDATE tache SET fin_journee = %s WHERE jour_actuel = %s AND " \
+              "numero IN (SELECT numero FROM utilisateur WHERE email = %s)"
+        BDD.bdd_cursor.execute(sql, (1, datetime.datetime.now().date(),  mail_connexion.get()))
+        BDD.bdd.commit()
 
         fin_tache.config(state=ttkb.DISABLED)
         fin_journee.config(state=ttkb.DISABLED)
         debut_tache.config(state=ttkb.DISABLED)
+        selection_numero_tache.config(state=ttkb.DISABLED)
         show_bilan()
         actions.select(2)
 
     except:
-        erreur_bdd()
+        if type_notification_audio:
+            parler("Nous avons rencontre un probleme, Merci de reesayer!")
+        else:
+            Messagebox.show_warning(title="Attention", message="Nous avons rencontre un probleme,\n"
+                                                               "Merci de reesayer!")
 
 
 # gestion du bilan
-def show_bilan():
+def show_bilan(date=datetime.datetime.now().date()):
     # gestion des bilan
-    bilan_utilisateur = Bilan.Bilan(mail_connexion.get())
+    bilan_utilisateur = Bilan.Bilan(mail_connexion.get(), date)
+    titre_bilan.config(text=f"Rapport journalier: {date}")
 
     """" #################################### bilan #################################### """
 
@@ -633,29 +653,6 @@ def remplissage():
             Messagebox.show_warning(title="Attention", message=erreur["msg"])
 
 
-# jour actuel
-def jour_actuel():
-    jours = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
-    mois = ["Janvier", "Fevrier", "Mars", "Avril", "Mai", "Juin",
-            "Juillet", "Aout", "Septembre", "Octobre", "Novembre", "Decembre"]
-
-    jour = jours[datetime.datetime.now().weekday()] + " " + str(datetime.datetime.now().day) + " " \
-           + mois[datetime.datetime.now().month - 1] + " " + str(datetime.datetime.now().year)
-    return jour
-
-
-# erreur bdd
-def erreur_bdd():
-    global type_notification_audio
-    if type_notification_audio:
-        parler("Une erreur s'est produite merci de réessayer."
-               "Si le problème persite bien vouloir nous contactez!")
-    else:
-        Messagebox.show_info(message="Une erreur s'est produite merci de réessayer. \n "
-                                     "Si le problème persite bien vouloir nous contactez!",
-                             title="Connexion", bootstyle="success")
-
-
 # text to speech
 def parler(texte):
     # initialisation
@@ -950,30 +947,44 @@ def commencer():
 # verification existence
 def existance():
     import BDD
-    global tache_exits, tableau_numero_tache
+    global tache_exits, tableau_numero_tache, type_notification_audio
 
-    if not len(tableau_numero_tache) == 0:
-        # selection de numero
-        BDD.bdd_cursor.execute("SELECT numero_tache FROM tache WHERE jour_actuel = %s AND fin_journee = %s AND "
-                               "numero  IN (SELECT numero FROM utilisateur WHERE email = %s AND mdp = %s)",
-                               (datetime.datetime.now().date(), 0, mail_connexion.get(), mdp_connexion.get()))
-        resultats = BDD.bdd_cursor.fetchall()
-        if len(resultats) > 0:
-            tache_exits = True
+    BDD.bdd_cursor.execute("SELECT COUNT(*) FROM tache WHERE fin_journee = %s AND jour_actuel = %s AND "
+                           "numero IN (SELECT numero FROM utilisateur WHERE email = %s)",
+                           (1, datetime.datetime.now().date(), mail_connexion.get()))
 
-            for resultat in resultats:
-                tableau_numero_tache.remove(resultat[0])
-
-            numero_tache.config(values=tableau_numero_tache)
-            numero_tache.current(0)
-            remplissage()
+    if BDD.bdd_cursor.fetchone()[0] > 0:
+        if type_notification_audio:
+            parler("Vous avez, ferme votre journee")
+        else:
+            Messagebox.show_info(title="Info", message="Vous avez deja ferme votre journee")
+        actions.hide(0)
+        actions.select(2)
+        show_bilan()
 
     else:
-        ajouter_tache.config(state=ttkb.DISABLED)
-        debut_journee.config(state=ttkb.ACTIVE)
-        tache.config(state=ttkb.DISABLED)
-        numero_tache.config(state=ttkb.DISABLED)
-        remplissage()
+        if not len(tableau_numero_tache) == 0:
+            # selection de numero
+            BDD.bdd_cursor.execute("SELECT numero_tache FROM tache WHERE jour_actuel = %s AND fin_journee = %s AND "
+                                   "numero  IN (SELECT numero FROM utilisateur WHERE email = %s AND mdp = %s)",
+                                   (datetime.datetime.now().date(), 0, mail_connexion.get(), mdp_connexion.get()))
+            resultats = BDD.bdd_cursor.fetchall()
+            if len(resultats) > 0:
+                tache_exits = True
+
+                for resultat in resultats:
+                    tableau_numero_tache.remove(resultat[0])
+
+                numero_tache.config(values=tableau_numero_tache)
+                numero_tache.current(0)
+                remplissage()
+
+        else:
+            ajouter_tache.config(state=ttkb.DISABLED)
+            debut_journee.config(state=ttkb.ACTIVE)
+            tache.config(state=ttkb.DISABLED)
+            numero_tache.config(state=ttkb.DISABLED)
+            remplissage()
 
 
 # creation app
@@ -1141,8 +1152,12 @@ visualisation_texte.grid(row=2, column=0, columnspan=3, padx=20, pady=20, sticky
 
 """" #################################### bilan #################################### """
 # tire
-ttkb.Label(bilan, text="Rapport journalier", bootstyle="success inverse",
-           font=("poppins", 15)).pack(fill="x", pady=5, padx=5)
+titre_bilan = ttkb.Label(bilan, text="Rapport journalier", bootstyle="success inverse",
+           font=("poppins", 15))
+titre_bilan.pack(fill="x", pady=5, padx=5)
+
+ttkb.Button(bilan, text="Afficher le bilan d'un ancien jour",
+            bootstyle="info outline", command=ancien_bilan).pack(fill="x", pady=(20, 5), padx=5)
 
 bilan_frame = ScrolledFrame(bilan, height=410, autohide=True)
 bilan_frame.pack(fill=ttkb.BOTH, pady=10, ipady=5, ipadx=10)
